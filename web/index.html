@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- CORS headers -->
+  <meta http-equiv="Access-Control-Allow-Origin" content="*">
+  <meta http-equiv="Access-Control-Allow-Methods" content="GET, POST, PUT, DELETE, OPTIONS">
+  <meta http-equiv="Access-Control-Allow-Headers" content="Origin, X-Requested-With, Content-Type, Accept, Authorization">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="securityappadmin">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>securityappadmin</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- CORS Proxy Script -->
+  <script src="cors_proxy.js"></script>
+</head>
+<body>
+  <!-- CORS Proxy Script -->
+  <script>
+    // Create a proxy for Firebase Storage requests
+    window.addEventListener('flutterInAppWebViewPlatformReady', function(event) {
+      setupCorsProxy();
+    });
+
+    // Also set up the proxy immediately in case the event doesn't fire
+    document.addEventListener('DOMContentLoaded', function() {
+      setupCorsProxy();
+    });
+
+    // Set up immediately as well
+    setupCorsProxy();
+
+    function setupCorsProxy() {
+      // Only set up once
+      if (window.corsProxySetup) return;
+      window.corsProxySetup = true;
+
+      // Intercept fetch requests to Firebase Storage
+      const originalFetch = window.fetch;
+      window.fetch = function(url, options) {
+        if (typeof url === 'string' && url.includes('firebasestorage.googleapis.com')) {
+          // Add CORS headers to the request
+          options = options || {};
+          options.headers = options.headers || {};
+          options.mode = 'cors';
+          options.credentials = 'include';
+
+          console.log('Proxying Firebase Storage request:', url);
+        }
+        return originalFetch(url, options);
+      };
+
+      // Also intercept XMLHttpRequest
+      const originalXhrOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+        if (typeof url === 'string' && url.includes('firebasestorage.googleapis.com')) {
+          console.log('Proxying Firebase Storage XHR request:', url);
+          this.setRequestHeader('Access-Control-Allow-Origin', '*');
+          this.setRequestHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+          this.setRequestHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+        }
+        return originalXhrOpen.apply(this, arguments);
+      };
+    }
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+    <meta name="description" content="Firebase Storage CORS Test">
+
+    <!-- CORS headers -->
+    <meta http-equiv="Access-Control-Allow-Origin" content="*">
+    <meta http-equiv="Access-Control-Allow-Methods" content="GET, POST, PUT, DELETE, OPTIONS">
+    <meta http-equiv="Access-Control-Allow-Headers" content="Origin, X-Requested-With, Content-Type, Accept, Authorization">
+
+    <title>Firebase Storage CORS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        img {
+            max-width: 100%;
+            max-height: 300px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        #result, #directResult {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: white;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Firebase Storage CORS Test</h1>
+
+    <div class="test-container">
+        <h2>Quick Test</h2>
+        <p>Click the button below to test Firebase Storage access with the default test URL.</p>
+        <button id="testButton">Test Firebase Storage Access</button>
+        <div id="result">Results will appear here...</div>
+    </div>
+
+    <div class="test-container">
+        <h2>Advanced Test with Custom URL</h2>
+        <input type="text" id="imageUrl" placeholder="Enter Firebase Storage URL"
+               value="https://firebasestorage.googleapis.com/v0/b/fluutersecurity-app.appspot.com/o/test.txt?alt=media" />
+        <div>
+            <button onclick="testDirectImage()">Test Direct</button>
+            <button onclick="testProxiedImage()">Test with Proxy</button>
+            <button onclick="testFetchImage()">Test Fetch API</button>
+            <button onclick="testXhrImage()">Test XHR</button>
+        </div>
+        <div id="directResult">Enter a URL and click one of the test buttons above.</div>
+        <img id="testImage" alt="Test image will appear here" style="display: none;" />
+    </div>
+
+    <div class="test-container">
+        <h2>CORS Configuration Status</h2>
+        <div id="corsStatus">Checking CORS configuration...</div>
+    </div>
+
+    <div class="test-container">
+        <h2>Server-Side Proxy Test</h2>
+        <p>This test uses the server-side proxy to bypass CORS restrictions.</p>
+        <input type="text" id="proxyUrl" placeholder="Enter Firebase Storage URL"
+               value="https://firebasestorage.googleapis.com/v0/b/fluutersecurity-app.appspot.com/o/test.txt?alt=media" />
+        <div>
+            <button onclick="testServerProxy()">Test Server Proxy</button>
+            <button onclick="testServerProxyImage()">Test Server Proxy Image</button>
+        </div>
+        <div id="proxyResult">Enter a URL and click one of the test buttons above.</div>
+        <img id="proxyImage" alt="Proxy test image will appear here" style="display: none;" />
+    </div>
+
+    <!-- CORS Proxy Script -->
+    <script src="cors_proxy.js"></script>
+    <script>
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('CORS Test page loaded');
+            checkCorsConfiguration();
+
+            // Set up the quick test button
+            document.getElementById('testButton').addEventListener('click', function() {
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = 'Testing Firebase Storage access...';
+
+                // Test URL - replace with an actual Firebase Storage URL from your app
+                const testUrl = 'https://firebasestorage.googleapis.com/v0/b/fluutersecurity-app.appspot.com/o/test.txt?alt=media';
+
+                // Use fetch with our CORS proxy
+                fetch(window.getProxiedUrl ? window.getProxiedUrl(testUrl) : testUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok: ' + response.status);
+                        }
+                        return response.text();
+                    })
+                    .then(data => {
+                        resultDiv.innerHTML = '<p class="success">Success! Response:</p><pre>' + data + '</pre>';
+                    })
+                    .catch(error => {
+                        resultDiv.innerHTML = '<p class="error">Error:</p><pre>' + error.message + '</pre>';
+                        console.error('Error:', error);
+                    });
+            });
+        });
+
+        // Test direct image loading
+        function testDirectImage() {
+            const url = document.getElementById('imageUrl').value;
+            if (!url) {
+                alert('Please enter a Firebase Storage URL');
+                return;
+            }
+
+            const resultDiv = document.getElementById('directResult');
+            resultDiv.innerHTML = 'Loading direct image...';
+
+            const img = document.getElementById('testImage');
+            img.style.display = 'block';
+            img.onload = function() {
+                resultDiv.innerHTML = '<span class="success">Direct image loaded successfully!</span>';
+            };
+            img.onerror = function() {
+                resultDiv.innerHTML = '<span class="error">Failed to load direct image. CORS issue detected.</span>';
+            };
+            img.src = url;
+        }
+
+        // Test proxied image loading
+        function testProxiedImage() {
+            const url = document.getElementById('imageUrl').value;
+            if (!url) {
+                alert('Please enter a Firebase Storage URL');
+                return;
+            }
+
+            const resultDiv = document.getElementById('directResult');
+            resultDiv.innerHTML = 'Loading proxied image...';
+
+            const proxiedUrl = window.getProxiedUrl ? window.getProxiedUrl(url) : url;
+            console.log('Proxied URL:', proxiedUrl);
+
+            const img = document.getElementById('testImage');
+            img.style.display = 'block';
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                resultDiv.innerHTML = '<span class="success">Proxied image loaded successfully!</span>';
+            };
+            img.onerror = function() {
+                resultDiv.innerHTML = '<span class="error">Failed to load proxied image. CORS issue still present.</span>';
+            };
+            img.src = proxiedUrl;
+        }
+
+        // Test using Fetch API
+        function testFetchImage() {
+            const url = document.getElementById('imageUrl').value;
+            if (!url) {
+                alert('Please enter a Firebase Storage URL');
+                return;
+            }
+
+            const resultDiv = document.getElementById('directResult');
+            resultDiv.innerHTML = 'Testing with Fetch API...';
+
+            fetch(url, {
+                mode: 'cors',
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const img = document.getElementById('testImage');
+                img.style.display = 'block';
+                img.src = URL.createObjectURL(blob);
+                resultDiv.innerHTML = '<span class="success">Fetch API successful!</span>';
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<span class="error">Fetch API failed: ${error.message}</span>`;
+                console.error('Fetch error:', error);
+            });
+        }
+
+        // Test using XMLHttpRequest
+        function testXhrImage() {
+            const url = document.getElementById('imageUrl').value;
+            if (!url) {
+                alert('Please enter a Firebase Storage URL');
+                return;
+            }
+
+            const resultDiv = document.getElementById('directResult');
+            resultDiv.innerHTML = 'Testing with XMLHttpRequest...';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.responseType = 'blob';
+
+            xhr.onload = function() {
+                if (this.status === 200) {
+                    const img = document.getElementById('testImage');
+                    img.style.display = 'block';
+                    img.src = URL.createObjectURL(this.response);
+                    resultDiv.innerHTML = '<span class="success">XHR successful!</span>';
+                } else {
+                    resultDiv.innerHTML = `<span class="error">XHR failed with status: ${this.status}</span>`;
+                }
+            };
+
+            xhr.onerror = function(e) {
+                resultDiv.innerHTML = '<span class="error">XHR failed with network error (likely CORS)</span>';
+                console.error('XHR error:', e);
+            };
+
+            xhr.send();
+        }
+
+        // Check CORS configuration
+        function checkCorsConfiguration() {
+            const corsStatus = document.getElementById('corsStatus');
+
+            // Create a test URL
+            const testUrl = 'https://firebasestorage.googleapis.com/v0/b/fluutersecurity-app.appspot.com/o/test.txt?alt=media';
+
+            // Try a preflight request
+            fetch(testUrl, {
+                method: 'GET',
+                headers: {
+                    'Origin': window.location.origin,
+                    'Cache-Control': 'no-cache'
+                }
+            })
+            .then(response => {
+                // Check if CORS headers are present
+                const corsHeaders = response.headers.get('access-control-allow-origin');
+                if (corsHeaders) {
+                    corsStatus.innerHTML = '<span class="success">CORS is properly configured! Headers: ' + corsHeaders + '</span>';
+                } else {
+                    corsStatus.innerHTML = '<span class="error">CORS headers not found in response. Configuration may be incomplete.</span>';
+                }
+            })
+            .catch(error => {
+                // Even if there's an error, we can check if it's CORS related
+                if (error.message.includes('CORS')) {
+                    corsStatus.innerHTML = '<span class="error">CORS is not properly configured: ' + error.message + '</span>';
+                } else {
+                    corsStatus.innerHTML = '<span class="error">Error checking CORS configuration: ' + error.message + '</span>';
+                }
+
+                // Provide recommendations
+                corsStatus.innerHTML += '<p>Recommendations:</p><ul>' +
+                    '<li>Make sure you\'ve deployed the CORS configuration using the deploy_cors.bat script</li>' +
+                    '<li>Verify that your Firebase Storage bucket name is correct in the script</li>' +
+                    '<li>Check that the cors.json file has the correct configuration</li>' +
+                    '<li>Try adding your specific domain to the allowed origins in cors.json</li>' +
+                    '<li>Use the server-side proxy to bypass CORS restrictions</li>' +
+                '</ul>';
+            });
+        }
+
+        // Test server-side proxy
+        function testServerProxy() {
+            const url = document.getElementById('proxyUrl').value;
+            if (!url) {
+                alert('Please enter a Firebase Storage URL');
+                return;
+            }
+
+            const resultDiv = document.getElementById('proxyResult');
+            resultDiv.innerHTML = 'Testing server-side proxy...';
+
+            // Create the proxied URL
+            const proxyServerUrl = '/firebase_proxy.php';
+            const encodedUrl = encodeURIComponent(url);
+            const proxiedUrl = `${proxyServerUrl}?url=${encodedUrl}`;
+
+            console.log('Server proxy URL:', proxiedUrl);
+
+            // Test with fetch
+            fetch(proxiedUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    resultDiv.innerHTML = '<span class="success">Server proxy successful!</span><pre>' +
+                        (data.length > 500 ? data.substring(0, 500) + '...' : data) + '</pre>';
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `<span class="error">Server proxy failed: ${error.message}</span>`;
+                    console.error('Server proxy error:', error);
+                });
+        }
+
+        // Test server-side proxy with image
+        function testServerProxyImage() {
+            const url = document.getElementById('proxyUrl').value;
+            if (!url) {
+                alert('Please enter a Firebase Storage URL');
+                return;
+            }
+
+            const resultDiv = document.getElementById('proxyResult');
+            resultDiv.innerHTML = 'Loading image via server-side proxy...';
+
+            // Create the proxied URL
+            const proxyServerUrl = '/firebase_proxy.php';
+            const encodedUrl = encodeURIComponent(url);
+            const proxiedUrl = `${proxyServerUrl}?url=${encodedUrl}`;
+
+            console.log('Server proxy image URL:', proxiedUrl);
+
+            const img = document.getElementById('proxyImage');
+            img.style.display = 'block';
+            img.onload = function() {
+                resultDiv.innerHTML = '<span class="success">Image loaded successfully via server proxy!</span>';
+            };
+            img.onerror = function(e) {
+                resultDiv.innerHTML = '<span class="error">Failed to load image via server proxy.</span>';
+                console.error('Server proxy image error:', e);
+            };
+            img.src = proxiedUrl;
+        }
+    </script>
+</body>
+</html>
